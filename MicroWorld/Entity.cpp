@@ -5,15 +5,17 @@ Entity::Entity()
 {
 }
 
-Entity::Entity(char genome_[GENOME_SIZE], std::vector<Entity> &list)
+Entity::Entity(int id_, char genome_[GENOME_SIZE], std::vector<Entity> &list, std::vector<std::vector<int>>& mat)
 {
+	id = id_;
+
 	for (size_t i = 0; i < GENOME_SIZE; i++)
 	{
 		genome[i] = genome_[i];
 	}
 
 	List = &list;
-
+	Matrix = &mat;
 	rotation = 0;
 	position = Vector2(0, 0);
 	energy = 10;
@@ -23,14 +25,17 @@ Entity::Entity(char genome_[GENOME_SIZE], std::vector<Entity> &list)
 	genoffset = 0;
 }
 
-Entity::Entity(char rotation_, Vector2 position_, int energy_, char genome_[GENOME_SIZE], std::vector<Entity>& list)
+Entity::Entity(int id_, char rotation_, Vector2 position_, int energy_, char genome_[GENOME_SIZE], std::vector<Entity>& list, std::vector<std::vector<int>>& mat)
 {
+	id = id_;
+
 	for (size_t i = 0; i < GENOME_SIZE; i++)
 	{
 		genome[i] = genome_[i];
 	}
 
 	List = &list;
+	Matrix = &mat;
 
 	rotation = rotation_;
 	position = position_;
@@ -40,14 +45,17 @@ Entity::Entity(char rotation_, Vector2 position_, int energy_, char genome_[GENO
 	genoffset = 1;
 }
 
-Entity::Entity(int rotation_, Vector2 position_, int energy_, char genome_[GENOME_SIZE], std::vector<Entity>& list)
+Entity::Entity(int id_, int rotation_, Vector2 position_, int energy_, char genome_[GENOME_SIZE], std::vector<Entity>& list, std::vector<std::vector<int>>& mat)
 {
+	id = id_;
+
 	for (size_t i = 0; i < GENOME_SIZE; i++)
 	{
 		genome[i] = genome_[i];
 	}
 
 	List = &list;
+	Matrix = &mat;
 
 	rotation = rotation_;
 	position = position_;
@@ -71,15 +79,6 @@ char Entity::RotateAbs(char gen, char gp)
 	return 2;
 }
 
-// ROTATE RELATIVELY
-char Entity::RotateRel(char gen, char gp)
-{
-	char rot = genome[gp + 1];
-	rotation = (rot + rotation) % 8;
-
-	return 2;
-}
-
 // LOOK ABSOLUTLY
 char Entity::LookAbs(char gen, char gp)
 {
@@ -90,68 +89,37 @@ char Entity::LookAbs(char gen, char gp)
 	Vector2 direction = rotToDir(rot % 8);
 	Vector2 lookAt = position + direction;
 
+	bool isThatWall = false;
+
 	Entity observable = Entity();
 	bool isEmpty = true;
-	for (int i = 0; i < List->size(); i++)
-		if (List->at(i).position == lookAt) {
-			observable = List->at(i);
-			isEmpty = false;
-			break;
-		}
 
-	char offset;
-	bool isFriedly = false;
-	char error = 0;
-
-	if (isEmpty) offset = 2;
-	else
+	if (0 > lookAt.x || lookAt.x >= SCREEN_WIDTH / SIZE || 0 > lookAt.y || lookAt.y >= SCREEN_HEIGHT / SIZE)
+		isThatWall = true;
+	else if (Matrix->at(lookAt.x).at(lookAt.y) >= 0)
 	{
-		if (observable.isDead) offset = 3;
-		else
-		{
-			for (char i = 0; i < GENOME_SIZE; i++)
-				if (genome[i] != observable.genome[i]) error++;
-			if (error <= 2) offset = 4;
-			else offset = 5;
-		}
+		observable = List->at(Matrix->at(lookAt.x).at(lookAt.y));
+		isEmpty = false;
 	}
 
-	return genome[gp + offset];
-}
-
-// LOOK RELATIVELY
-char Entity::LookRel(char gen, char gp)
-{
-	extern Vector2 rotToDir(char);
-
-	char rot = genome[gp + 1];
-
-	Vector2 direction = rotToDir((rot + rotation) % 8);
-	Vector2 lookAt = position + direction;
-
-	Entity observable = Entity();
-	bool isEmpty = true;
-	for (int i = 0; i < List->size(); i++)
-		if (List->at(i).position == lookAt) {
-			observable = List->at(i);
-			isEmpty = false;
-			break;
-		}
-
-	char offset;
+	ret_offset offset;
 	bool isFriedly = false;
 	char error = 0;
 
-	if (isEmpty) offset = 2;
+	if (isThatWall)
+	{
+		offset = 2;
+	}
+	else if (isEmpty) offset = 3;
 	else
 	{
-		if (observable.isDead) offset = 3;
+		if (observable.isDead) offset = 4;
 		else
 		{
 			for (char i = 0; i < GENOME_SIZE; i++)
 				if (genome[i] != observable.genome[i]) error++;
-			if (error <= 2) offset = 4;
-			else offset = 5;
+			if (error <= 2) offset = 5;
+			else offset = 6;
 		}
 	}
 
@@ -168,20 +136,38 @@ char Entity::MoveAbs(char gen, char gp)
 	Vector2 lookAt = position + direction;
 
 	bool isThatWall = false;
-	if (0 > lookAt.x || lookAt.x >= SCREEN_WIDTH / SIZE || 0 > lookAt.y || lookAt.y >= SCREEN_HEIGHT / SIZE)
-	{
-		isThatWall = true;
-	}
 
 	Entity observable = Entity();
 	bool isEmpty = true;
-	for (int i = 0; i < List->size(); i++)
-		if (List->at(i).position == lookAt)
+
+	try
+	{
+		if (0 > lookAt.x || lookAt.x >= SCREEN_WIDTH / SIZE || 0 > lookAt.y || lookAt.y >= SCREEN_HEIGHT / SIZE)
+			isThatWall = true;
+		else if (Matrix->at(lookAt.x).at(lookAt.y) >= 0) //!
 		{
-			observable = List->at(i);
+			if (Matrix->at(lookAt.x).at(lookAt.y) >= List->size())
+			{
+				std::cout << Matrix->at(lookAt.x).at(lookAt.y) << " / " << List->size() << std::endl;
+				//int f;
+				//std::cin >> f;
+			}
+			else
+			observable = List->at(Matrix->at(lookAt.x).at(lookAt.y)); //!
 			isEmpty = false;
-			break;
 		}
+	}
+	catch (std::out_of_range)
+	{
+		std::cout << "OUT OF RANGE: QQQQ" << std::endl << std::endl;
+
+		std::cout << lookAt.x << " " << lookAt.y << std::endl;
+
+		std::cout << Matrix->at(lookAt.x).at(lookAt.y) << " / " << List->size() << std::endl;
+
+		char f;
+		std::cin >> f;
+	}
 
 	char offset;
 	bool isFriedly = false;
@@ -193,61 +179,22 @@ char Entity::MoveAbs(char gen, char gp)
 	}
 	else if (isEmpty)
 	{
-		offset = 3;
-		position = position + direction;
-	}
-	else
-	{
-		if (observable.isDead) offset = 4;
-		else
+		try
 		{
-			for (char i = 0; i < GENOME_SIZE; i++)
-				if (genome[i] != observable.genome[i]) error++;
-			if (error <= 2) offset = 5;
-			else offset = 6;
+			offset = 3;
+			Matrix->at(position.x).at(position.y) = -1; //!
+			position = position + direction;
+			Matrix->at(position.x).at(position.y) = id; //!
 		}
-	}
-
-	return genome[gp + offset];
-}
-
-// MOVE RELATIVELY
-char Entity::MoveRel(char gen, char gp)
-{
-	extern Vector2 rotToDir(char);
-
-	char rot = genome[gp + 1];
-	Vector2 direction = rotToDir((rot + rotation) % 8);
-	Vector2 lookAt = position + direction;
-
-	bool isThatWall = false;
-	if (0 > lookAt.x || lookAt.x >= SCREEN_WIDTH / SIZE || 0 > lookAt.y || lookAt.y >= SCREEN_HEIGHT / SIZE)
-	{
-		isThatWall = true;
-	}
-
-	Entity observable = Entity();
-	bool isEmpty = true;
-	for (int i = 0; i < List->size(); i++)
-		if (List->at(i).position == lookAt)
+		catch (std::out_of_range)
 		{
-			observable = List->at(i);
-			isEmpty = false;
-			break;
+			std::cout << "OUT OF RANGE: IS EMPTY" << std::endl << std::endl;
+
+			std::cout << position.x << " " << position.y << std::endl;
+
+			char f;
+			std::cin >> f;
 		}
-
-	char offset;
-	bool isFriedly = false;
-	char error = 0;
-
-	if (isThatWall)
-	{
-		offset = 2;
-	}
-	else if (isEmpty)
-	{
-		offset = 3;
-		position = position + direction;
 	}
 	else
 	{
@@ -297,13 +244,10 @@ char Entity::Division(char gen, char gp)
 
 		if (0 > lookAt.x || lookAt.x >= SCREEN_WIDTH / SIZE || 0 > lookAt.y || lookAt.y >= SCREEN_HEIGHT / SIZE)
 			isEmpty = false;
-		else
-			for (int j = 0; j < List->size(); j++)
-				if (List->at(j).position == lookAt)
-				{
-					isEmpty = false;
-					break;
-				}
+		else if (Matrix->at(lookAt.x).at(lookAt.y) >= 0)
+		{
+			isEmpty = false;
+		}
 
 		if (isEmpty)
 			break;
@@ -312,7 +256,8 @@ char Entity::Division(char gen, char gp)
 	if (isEmpty)
 	{
 		energy /= 2;
-		Entity ent = Entity(0 + rand() % 8, lookAt, energy, newGenome, *List);
+		Entity ent = Entity(List->size(), 0 + rand() % 8, lookAt, energy, newGenome, *List, *Matrix);
+		Matrix->at(lookAt.x).at(lookAt.y) = List->size();
 		List->push_back(ent);
 		return 1;
 	}
@@ -333,56 +278,78 @@ char Entity::EatAbs(char gen, char gp)
 	bool isEmpty = true;
 	bool isThatWall = false;
 
-	if (0 > lookAt.x || lookAt.x >= SCREEN_WIDTH / SIZE || 0 > lookAt.y || lookAt.y >= SCREEN_HEIGHT / SIZE)
-		isThatWall = true;
-
-	Entity *observable = new Entity();
+	Entity* observable = new Entity();
 	int observableID = 0;
-	for (int i = 0; i < List->size(); i++)
-	{
-		if (isThatWall) break;
 
-		if (List->at(i).position == lookAt)
+	try
+	{
+		if (0 > lookAt.x || lookAt.x >= SCREEN_WIDTH / SIZE || 0 > lookAt.y || lookAt.y >= SCREEN_HEIGHT / SIZE)
+			isThatWall = true;
+		else if (Matrix->at(lookAt.x).at(lookAt.y) >= 0)
 		{
-			observable = &List->at(i);
-			observableID = i;
+			observable = &List->at(Matrix->at(lookAt.x).at(lookAt.y));
 			isEmpty = false;
-			break;
+			observableID = observable->id;
 		}
-	}
 
-	char offset;
-	bool isFriedly = false;
-	char error = 0;
+		char offset;
+		bool isFriedly = false;
+		char error = 0;
 
-	if (isThatWall)
-	{
-		offset = 2;
-	}
-	else if (isEmpty) offset = 3;
-	else
-	{
-		if (observable->isDead)
+		if (isThatWall)
 		{
-			energy += 100;
-
-			List->erase(List->begin() + observableID);
-
-			offset = 4;
+			offset = 2;
 		}
+		else if (isEmpty) offset = 3;
 		else
 		{
-			energy += (observable->energy / 4) + 100;
+			if (observable->isDead)
+			{
+				energy += ORGANIC_ENERGY;
 
-			for (char i = 0; i < GENOME_SIZE; i++)
-				if (genome[i] != observable->genome[i]) error++;
+				Matrix->at(observable->position.x).at(observable->position.y) = -1;
+				List->erase(List->begin() + observableID);
 
-			if (error <= 2) offset = 5;
-			else offset = 6;
+				offset = 4;
+			}
+			else
+			{
+				energy += (observable->energy / 4) + ORGANIC_ENERGY;
 
-			List->erase(List->begin() + observableID);
+				for (char i = 0; i < GENOME_SIZE; i++)
+					if (genome[i] != observable->genome[i]) error++;
+
+				if (error <= 2) offset = 5;
+				else offset = 6;
+
+				Matrix->at(observable->position.x).at(observable->position.y) = -1;
+				List->erase(List->begin() + observableID);
+			}
 		}
-	}
 
-	return genome[gp + offset];
+		for (int i = observableID; i < List->size(); i++)
+		{
+			List->at(i).id = i;
+			Matrix->at(List->at(i).position.x).at(List->at(i).position.y) = i;
+		}
+
+		return genome[gp + offset];
+
+	}
+	catch (std::out_of_range)
+	{
+		std::cout << "OUT OF RANGE: EAT" << std::endl;
+
+		for (int i = 0; i < Matrix->size(); i++)
+		{
+			for (int j = 0; j < Matrix->at(i).size(); j++)
+			{
+				std::cout << Matrix->at(i).at(j) << " ";
+			}
+			std::cout << std::endl;
+		}
+
+		char f;
+		std::cin >> f;
+	}
 }

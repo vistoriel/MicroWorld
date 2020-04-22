@@ -10,6 +10,7 @@
 using namespace std;
 
 vector<Entity> entList;
+vector<vector<int>> matrix;
 
 int age = 0;
 
@@ -75,6 +76,16 @@ void Draw();
 
 int main()
 {
+	matrix.resize(SCREEN_WIDTH / SIZE);
+
+	for (int i = 0; i < SCREEN_WIDTH / SIZE; i++)
+	{
+		matrix.at(i).resize(SCREEN_HEIGHT / SIZE);
+		for (size_t j = 0; j < SCREEN_HEIGHT / SIZE; j++)
+			matrix.at(i).at(j) = -1;
+	}
+
+
 	srand(time(0));
 	for (char i = 0; i < GENOME_SIZE; i++)
 	{
@@ -89,9 +100,10 @@ int main()
 		randomGenome2[i] = MIN_GEN + rand() % MAX_GEN;
 	}
 
-	entList.push_back(Entity(randomGenome0, entList));
+	entList.push_back(Entity(0, randomGenome0, entList, matrix));
 	entList.at(0).position.x = 40;
 	entList.at(0).position.y = 30;
+	matrix[40][30] = 0;
 	entList.at(0).energy = 100000;
 
 	Draw();
@@ -113,12 +125,15 @@ int main()
 
 		window.display();
 
-		int count = 0;
+		int countA = 0;
+		int countD = 0;
 		for (int i = 0; i < entList.size(); i++)
 			if (!entList.at(i).isDead)
-				count++;
+				countA++;
+			else
+				countD++;
 
-		cout << count << endl;
+		cout << "Alive: " << countA << " Dead: " << countD << endl;
 	}
 
 	return 0;
@@ -127,9 +142,11 @@ int main()
 
 void ageHandler()
 {
-	for (auto curEnt = 0; curEnt < entList.size(); curEnt++)
+	for (int curEnt = 0; curEnt < entList.size(); curEnt++)
 	{
-		Entity &ent = entList.at(curEnt);
+
+			Entity& ent = entList.at(curEnt);
+
 
 		if (ent.isDead)
 		{
@@ -137,68 +154,77 @@ void ageHandler()
 			ent.MoveAbs(0, 0);
 			continue;
 		}
-
-		char gp = ent.genp;
-		char offset = ent.genoffset;
-
-		for (char step = 0; step < STEPS; step++)
+		try
 		{
-			ent.energy--;
+			char gp = ent.genp;
+			char offset = ent.genoffset;
 
-			if (ent.energy < 0)
-			{
-				ent.isDead = true;
+			for (char step = 0; step < STEPS; step++)
+			{	
+				ent.energy--;
 
-				break;
+				if (ent.energy < 0)
+				{
+					ent.isDead = true;
+
+					break;
+				}
+
+				gp = (gp + offset) % GENOME_SIZE;
+				offset = 1;
+
+				char gen = ent.genome[gp];
+
+
+				if (ent.energy >= DIVISION_ENERGY)
+				{
+					ent.Division(gen, gp);
+
+					break;
+				}
+
+				if (gen == 15)
+					offset = ent.RotateAbs(gen, gp);
+				if (gen == 16)
+					offset = ent.RotateAbs(gen, gp);
+				if (gen == 17)
+					offset = ent.LookAbs(gen, gp);
+				if (gen == 18)
+					offset = ent.LookAbs(gen, gp);
+				if (gen == 19)
+					offset = ent.MoveAbs(gen, gp);
+				if (gen == 20)
+					offset = ent.MoveAbs(gen, gp);
+				if (gen == 21)
+				{
+					offset = ent.Photosynthesis(gen, gp);
+					break;
+				}
+				if (gen == 30)
+				{
+					offset = ent.Division(gen, gp);
+					break;
+				}
+				if (gen == 31)
+				{
+					offset = ent.EatAbs(gen, gp);
+					break;
+				}
+				else
+					offset = gen;
 			}
 
-			gp = (gp + offset) % GENOME_SIZE;
-			offset = 1;
 
-			char gen = ent.genome[gp];
-
-			if (ent.energy >= 10000)
-			{
-				ent.Division(gen, gp);
-
-				break;
-			}
-
-			if (gen == 15)
-				offset = ent.RotateAbs(gen, gp);
-			if (gen == 16)
-				offset = ent.RotateRel(gen, gp);
-			if (gen == 17)
-				offset = ent.LookAbs(gen, gp);
-			if (gen == 18)
-				offset = ent.LookRel(gen, gp);
-			if (gen == 19)
-				offset = ent.MoveAbs(gen, gp);
-			if (gen == 20)
-				offset = ent.MoveRel(gen, gp);
-			if (gen == 21)
-			{
-				offset = ent.Photosynthesis(gen, gp);
-				break;
-			}
-			if (gen == 30)
-			{
-				offset = ent.Division(gen, gp);
-				break;
-			}
-			if (gen == 31)
-			{
-				offset = ent.EatAbs(gen, gp);
-				break;
-			}
-			else
-				offset = gen;
+			entList.at(curEnt).genp = gp;
+			entList.at(curEnt).genoffset = offset;
 		}
-
-		entList.at(curEnt).genp = gp;
-		entList.at(curEnt).genoffset = offset;
+		catch (std::out_of_range)
+		{
+			cout << "OUT OF RANGE: " << curEnt << " / " << entList.size() << endl;
+			int f;
+			cin >> f;
+		}
 	}
-
 	age++;
 }
 

@@ -7,8 +7,12 @@
 
 #define SCREEN_WIDTH 1280
 #define SCREEN_HEIGHT 720
-#define SIZE 5
+#define SIZE 2
 
-#define LIGHT_FORCE 10
+#define LIGHT_FORCE 20
+#define ORGANIC_ENERGY 300
 
 #define STEPS 10
+#define DIVISION_ENERGY 5000
+
+typedef char ret_offset;
