@@ -14,6 +14,8 @@ vector<vector<int>> matrix;
 
 int age = 0;
 
+bool isGameOver = false;
+
 char defaultGenome[GENOME_SIZE] = {
 	21, 21, 21, 21, 21, 21, 21, 21,
 	21, 21, 21, 21, 21, 21, 21, 21,
@@ -22,6 +24,16 @@ char defaultGenome[GENOME_SIZE] = {
 	21, 21, 21, 21, 21, 21, 21, 21,
 	21, 21, 21, 21, 21, 21, 21, 21,
 	21, 21, 21, 21, 21, 21, 21, 21,
+	21, 21, 21, 21, 21, 21, 21, 21,
+};
+char defaultKillGenome[GENOME_SIZE] = {
+	21, 31, 21, 21, 32, 21, 21, 32,
+	21, 21, 31, 21, 21, 21, 21, 21,
+	21, 21, 21, 21, 21, 31, 21, 21,
+	21, 21, 21, 21, 32, 21, 21, 21,
+	21, 21, 21, 32, 21, 21, 21, 21,
+	21, 21, 21, 21, 21, 21, 21, 21,
+	21, 21, 32, 21, 21, 21, 23, 21,
 	21, 21, 21, 21, 21, 21, 21, 21,
 };
 char defaultGenomeL[GENOME_SIZE] = {
@@ -102,9 +114,10 @@ int main()
 
 	entList.push_back(Entity(0, randomGenome0, entList, matrix));
 	entList.at(0).position.x = 40;
-	entList.at(0).position.y = 30;
-	matrix[40][30] = 0;
+	entList.at(0).position.y = 50;
+	matrix[40][50] = 0;
 	entList.at(0).energy = 100000;
+
 
 	Draw();
 
@@ -119,11 +132,7 @@ int main()
 
 		ageHandler();
 
-		window.clear();
-
 		Draw();
-
-		window.display();
 
 		int countA = 0;
 		int countD = 0;
@@ -133,7 +142,14 @@ int main()
 			else
 				countD++;
 
-		cout << "Alive: " << countA << " Dead: " << countD << endl;
+		cout << "Alive: " << countA << "\tDead: " << countD  << "\tAll: " << entList.size() << endl;
+
+		if ((isGameOver == true) || (entList.size() == 0) || (countA == 0))
+		{
+			cout << "You are alone! Game Over!" << endl;
+			//char f;
+			//cin >> f;
+		}
 	}
 
 	return 0;
@@ -144,21 +160,29 @@ void ageHandler()
 {
 	for (int curEnt = 0; curEnt < entList.size(); curEnt++)
 	{
-
-			Entity& ent = entList.at(curEnt);
-
+		Entity& ent = entList.at(curEnt);
 
 		if (ent.isDead)
 		{
-			ent.genome[1] = 0;
-			ent.MoveAbs(0, 0);
+			int id = ent.id;
+			matrix.at(ent.position.x).at(ent.position.y) = -1;
+			entList.erase(entList.begin() + id);
+
+
+			int i = (id <= 0 ? 0 : id <= 0);
+			for (; i < entList.size(); i++)
+			{
+				entList.at(i).id = i;
+				matrix.at(entList.at(i).position.x).at(entList.at(i).position.y) = i;
+			}
+
 			continue;
 		}
+
+		char gp = ent.genp;
+		char offset = ent.genoffset;
 		try
 		{
-			char gp = ent.genp;
-			char offset = ent.genoffset;
-
 			for (char step = 0; step < STEPS; step++)
 			{	
 				ent.energy--;
@@ -182,19 +206,19 @@ void ageHandler()
 
 					break;
 				}
-
+				
 				if (gen == 15)
-					offset = ent.RotateAbs(gen, gp);
+					offset = ent.Rotate(gen, gp, false);
 				if (gen == 16)
-					offset = ent.RotateAbs(gen, gp);
+					offset = ent.Rotate(gen, gp, true);
 				if (gen == 17)
-					offset = ent.LookAbs(gen, gp);
+					offset = ent.Look(gen, gp, false);
 				if (gen == 18)
-					offset = ent.LookAbs(gen, gp);
+					offset = ent.Look(gen, gp, true);
 				if (gen == 19)
-					offset = ent.MoveAbs(gen, gp);
+					offset = ent.Move(gen, gp, false);
 				if (gen == 20)
-					offset = ent.MoveAbs(gen, gp);
+					offset = ent.Move(gen, gp, true);
 				if (gen == 21)
 				{
 					offset = ent.Photosynthesis(gen, gp);
@@ -207,20 +231,34 @@ void ageHandler()
 				}
 				if (gen == 31)
 				{
-					offset = ent.EatAbs(gen, gp);
+					offset = ent.Eat(gen, gp, false, curEnt);
+					break;
+				}
+				if (gen == 32)
+				{
+					offset = ent.Eat(gen, gp, true, curEnt);
 					break;
 				}
 				else
 					offset = gen;
 			}
 
+			try
+			{
 
-			entList.at(curEnt).genp = gp;
-			entList.at(curEnt).genoffset = offset;
+				if (curEnt == entList.size()) curEnt = entList.size() - 1;
+
+				entList.at(curEnt).genp = gp;
+				entList.at(curEnt).genoffset = offset;
+			}
+			catch (std::out_of_range)
+			{
+				isGameOver = true;
+			}
 		}
 		catch (std::out_of_range)
 		{
-			cout << "OUT OF RANGE: " << curEnt << " / " << entList.size() << endl;
+			cout << "OUT OF RANGE: ageHandler - " << curEnt << " / " << entList.size() << endl;
 			int f;
 			cin >> f;
 		}
@@ -230,18 +268,31 @@ void ageHandler()
 
 void Draw()
 {
+	window.clear();
+
 	for (int i = 0; i < entList.size(); i++)
 	{
 		Vector2 pos = entList.at(i).position;
+		int e = entList.at(i).energy;
 
 		sf::RectangleShape rec(sf::Vector2f(SIZE, SIZE));
 		rec.setPosition(pos.x * SIZE, pos.y * SIZE);
+		sf::Color deadcol(30, 30, 30);
+
+		double r = ((double)e / 10000.0) * 255;
+		if (r > 255) r = 255;
+		sf::Color col(r, 100, 0);
 
 		if (entList.at(i).isDead)
-			rec.setFillColor(sf::Color::Cyan);
+			rec.setFillColor(deadcol);
 		else
-			rec.setFillColor(sf::Color::Green);
+		{
+			//sf::Color col(entList.at(i).color.red, entList.at(i).color.green, entList.at(i).color.blue);
+			rec.setFillColor(col);
+		}
 
 		window.draw(rec);
 	}
+
+	window.display();
 }
